@@ -10,82 +10,52 @@ class MailEclipseServiceProvider extends ServiceProvider
 {
     /**
      * Perform post-registration booting of services.
-     *
-     * @return void
      */
     public function boot()
     {
-        Route::middlewareGroup('maileclipse', config('maileclipse.middlewares', []));
-
-        $this->loadTranslationsFrom(__DIR__.'/../resources/lang', 'maileclipse');
-        $this->loadViewsFrom(__DIR__.'/../resources/views', 'maileclipse');
+        // Configuración de middleware directamente en las rutas
         $this->registerRoutes();
 
-        // Publishing is only necessary when using the CLI.
+        // Carga de vistas y traducciones
+        $this->loadTranslationsFrom(__DIR__.'/../resources/lang', 'maileclipse');
+        $this->loadViewsFrom(__DIR__.'/../resources/views', 'maileclipse');
+
+        // Console-specific
         if ($this->app->runningInConsole()) {
             $this->bootForConsole();
         }
     }
 
     /**
-     * Register the package routes.
-     *
-     * @return void
+     * Register the package routes with middleware protection.
      */
     private function registerRoutes()
     {
-        Route::group($this->routeConfiguration(), function () {
+        Route::group([
+            'prefix' => config('maileclipse.path', 'maileclipse'),
+            'middleware' => ['web', 'auth'],
+        ], function () {
             $this->loadRoutesFrom(__DIR__.'/Http/routes.php');
         });
     }
 
     /**
-     * Get the Telescope route group configuration array.
-     *
-     * @return array
-     */
-    private function routeConfiguration()
-    {
-        return [
-            'namespace' => 'Qoraiche\MailEclipse\Http\Controllers',
-            'prefix' => config('maileclipse.path'),
-            'middleware' => 'maileclipse',
-        ];
-    }
-
-    /**
-     * Register any package services.
-     *
-     * @return void
+     * Register any application services.
      */
     public function register()
     {
         $this->mergeConfigFrom(__DIR__.'/../config/maileclipse.php', 'maileclipse');
 
-        // Register the service the package provides.
         $this->app->singleton('maileclipse', function ($app) {
             return new MailEclipse;
         });
     }
 
     /**
-     * Get the services provided by the provider.
-     *
-     * @return array
-     */
-    public function provides()
-    {
-        return ['maileclipse'];
-    }
-
-    /**
      * Console-specific booting.
-     *
-     * @return void
      */
     protected function bootForConsole()
     {
-        // Publishing the configuration file.
         $this->publishes([
             __DIR__.'/../config/maileclipse.php' => config_path('maileclipse.php'),
         ], 'maileclipse.config');
@@ -98,7 +68,6 @@ class MailEclipseServiceProvider extends ServiceProvider
             __DIR__.'/../resources/views/templates' => $this->app->resourcePath('views/vendor/maileclipse/templates'),
         ], 'maileclipse.templates');
 
-        // Add Artisan publish command
         $this->commands([
             VendorPublishCommand::class,
         ]);
